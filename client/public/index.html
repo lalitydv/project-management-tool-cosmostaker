@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="Web site created using create-react-app"
+    />
+
+    <!-- ✅ Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ✅ Optional: Tailwind config inline (for custom colors or themes) -->
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: '#eb3b88',
+              secondary: '#523d97',
+              yellow: '#FECB19',
+            },
+            fontFamily: {
+              'sub-sub-heading': ['var(--sub-sub-heading-font-family)', 'sans-serif'],
+            },
+            boxShadow: {
+              'shadow-nav-shadown': 'var(--shadow-nav-shadown)',
+            },
+            keyframes: {
+              pump: {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-10px)' },
+              },
+            },
+            animation: {
+              pump: 'pump 1s infinite',
+            },
+          },
+        },
+      };
+    </script>
+
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <title>project-management-tool-cosmostaker</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
