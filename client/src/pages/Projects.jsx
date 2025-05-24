@@ -1,148 +1,133 @@
-/*  src/pages/Projects.jsx  */
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   PlusIcon, PencilSquareIcon, TrashIcon, XMarkIcon, MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
+import API from '../api/axios'; // your axios setup with token
 
-/* ------------------------------------------------------------------------ */
-/*  PALETTE                                                                 */
-/* ------------------------------------------------------------------------ */
 const colors = {
-  primary:   '#eb3b88',
+  primary: '#eb3b88',
   secondary: '#523d97',
-  yellow:    '#FECB19',
+  yellow: '#FECB19',
 };
 
-/* ------------------------------------------------------------------------ */
-/*  MOCK AUTH / PEOPLE                                                      */
-/* ------------------------------------------------------------------------ */
-const currentUser = 'John Smith';            // fake “logged-in” user
-const allPeople   = [
-  'John Smith', 'Emma Brown', 'Noah Lee', 'Ava Patel',
-  'Oliver Khan', 'Mia Gupta', 'Liam Zhou', 'Sophia Rao',
-];
+const currentUser = JSON.parse(localStorage.getItem('user'))?.name || 'John Smith';
 
-/* ------------------------------------------------------------------------ */
-/*  EMPTY PROJECT TEMPLATE                                                  */
-/* ------------------------------------------------------------------------ */
 const emptyProject = {
-  id: null,
+  _id: null,
   name: '',
   description: '',
-  owner: currentUser,
-  team: [],
+  teamMembers: [],
 };
 
-/* ------------------------------------------------------------------------ */
-/*  MAIN COMPONENT                                                          */
-/* ------------------------------------------------------------------------ */
 export default function Projects() {
-  /* ────────────────────────── state ──────────────────────────────────── */
-  const [projects, setProjects] = useState([
-    {
-      id: 1,
-      name: 'Website Redesign',
-      description: 'Full revamp of marketing site.',
-      owner: 'John Smith',
-      team: ['John Smith', 'Emma Brown', 'Noah Lee'],
-    },
-    {
-      id: 2,
-      name: 'Mobile App MVP',
-      description: 'Build iOS + Android proof-of-concept.',
-      owner: 'Emma Brown',
-      team: ['Emma Brown', 'Ava Patel'],
-    },
-  ]);
+  const [projects, setProjects] = useState([]);
+  const [query, setQuery] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [formData, setFormData] = useState(emptyProject);
+  const [isEditing, setIsEditing] = useState(false);
 
-  const [query,      setQuery]      = useState('');
-  const [modalOpen,  setModalOpen]  = useState(false);
-  const [formData,   setFormData]   = useState(emptyProject);
-  const [isEditing,  setIsEditing]  = useState(false);
+  const fetchProjects = async () => {
+    try {
+      const { data } = await API.get('/projects');
+      setProjects(data);
+    } catch (err) {
+      console.error('Fetch error:', err);
+    }
+  };
 
-  /* ────────────────────────── derived filtered list ──────────────────── */
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return projects;
+    const q = query.toLowerCase();
     return projects.filter(p =>
-      [p.name, p.description, p.owner, p.team.join(' ')].some(str =>
-        str.toLowerCase().includes(q)
+      [p.name, p.description, p.owner?.name].some(field =>
+        field?.toLowerCase().includes(q)
       )
     );
-  }, [projects, query]);
+  }, [query, projects]);
 
-  /* ────────────────────────── handlers ───────────────────────────────── */
-  const openNew  = () => { setFormData(emptyProject); setIsEditing(false); setModalOpen(true); };
-  const openEdit = p   => { setFormData(p);           setIsEditing(true);  setModalOpen(true); };
+  const openNew = () => {
+    setFormData(emptyProject);
+    setIsEditing(false);
+    setModalOpen(true);
+  };
 
-  const handleChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const openEdit = (project) => {
+    setFormData({ ...project, _id: project._id });
+    setIsEditing(true);
+    setModalOpen(true);
+  };
 
-  const toggleMember = name =>
-    setFormData(prev => ({
-      ...prev,
-      team: prev.team.includes(name)
-        ? prev.team.filter(n => n !== name)
-        : [...prev.team, name],
-    }));
+  const handleChange = (e) => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
 
-  const saveProject = () => {
-    const clean = { ...formData, name: formData.name.trim() };
-    if (clean.name === '') return;       // simple guard
-    if (isEditing) {
-      setProjects(ps => ps.map(p => (p.id === clean.id ? clean : p)));
-    } else {
-      setProjects(ps => [...ps, { ...clean, id: Date.now() }]);
+  const saveProject = async () => {
+    try {
+      if (isEditing) {
+        await API.put(`/projects/${formData._id}`, {
+          name: formData.name,
+          description: formData.description,
+          teamMembers: formData.teamMembers
+        });
+      } else {
+        await API.post('/projects', {
+          name: formData.name,
+          description: formData.description,
+          teamMembers: formData.teamMembers
+        });
+      }
+      setModalOpen(false);
+      fetchProjects();
+    } catch (err) {
+      console.error('Save error:', err);
     }
-    setModalOpen(false);
   };
 
-  const deleteProject = id =>
-    setProjects(ps => ps.filter(p => p.id !== id));
-
-  /* ────────────────────────── animations helpers ─────────────────────── */
-  const rowVariants = {
-    hidden:  { opacity: 0, y: -6 },
-    show:    { opacity: 1, y: 0 },
-    exit:    { opacity: 0, y: 6 },
+  const deleteProject = async (id) => {
+    try {
+      await API.delete(`/projects/${id}`);
+      fetchProjects();
+    } catch (err) {
+      console.error('Delete error:', err);
+    }
   };
 
-  /* ────────────────────────── UI ─────────────────────────────────────── */
   return (
     <div className="p-6">
-      {/* --- header row --------------------------------------------------- */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-semibold" style={{ color: colors.primary }}>
           All Projects
         </h1>
 
-        {/* search bar */}
-        <div className="relative w-full sm:w-72">
+        <div className="relative w-72">
           <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
           <input
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="Search…"
-            className="w-full pl-10 pr-3 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-            style={{ '--ring': colors.primary }}
+            className="w-full pl-10 pr-3 py-2 rounded-full border border-gray-300 focus:ring-2"
+            style={{ '--tw-ring-color': colors.primary }}
           />
         </div>
 
-        {/* new project button */}
         <button
           onClick={openNew}
-          className="flex items-center gap-1 px-4 py-2 text-sm rounded-full text-white shadow"
+          className="px-4 py-2 text-sm rounded-full text-white shadow"
           style={{ background: colors.secondary }}
         >
-          <PlusIcon className="h-4 w-4" /> New Project
+          <PlusIcon className="h-4 w-4 inline-block mr-1" />
+          New Project
         </button>
       </div>
 
-      {/* --- table -------------------------------------------------------- */}
       <div className="overflow-x-auto rounded-xl shadow-md overflow-hidden">
-        <table className="min-w-full text-sm ">
+        <table className="min-w-full text-sm">
           <thead>
-            <tr style={{ background: colors.secondary }} className="text-left text-white">
+            <tr className="text-white" style={{ background: colors.secondary }}>
               <th className="py-3 px-4 font-medium">Name</th>
               <th className="py-3 px-4 font-medium">Description</th>
               <th className="py-3 px-4 font-medium">Owner</th>
@@ -151,141 +136,79 @@ export default function Projects() {
             </tr>
           </thead>
 
-          <AnimatePresence component={motion.tbody}>
-            {filtered.map(p => (
-              <motion.tr
-                key={p.id}
-                variants={rowVariants}
-                initial="hidden"
-                animate="show"
-                exit="exit"
-                layout
-                className="border-b last:border-0 hover:bg-gray-50"
-              >
-                <td className="py-2.5 px-4">{p.name}</td>
-                <td className="py-2.5 px-4">{p.description}</td>
-                <td className="py-2.5 px-4">{p.owner}</td>
-                <td className="py-2.5 px-4">{p.team.join(', ')}</td>
-                <td className="py-2.5 px-4 text-center space-x-2">
-                  <button
-                    onClick={() => openEdit(p)}
-                    disabled={p.owner !== currentUser}
-                    title={p.owner !== currentUser ? 'Only owner can edit' : 'Edit'}
-                    className="inline-flex disabled:opacity-30"
-                  >
-                    <PencilSquareIcon className="h-5 w-5" style={{ color: colors.primary }} />
-                  </button>
-                  <button
-                    onClick={() => deleteProject(p.id)}
-                    disabled={p.owner !== currentUser}
-                    title={p.owner !== currentUser ? 'Only owner can delete' : 'Delete'}
-                    className="inline-flex disabled:opacity-30"
-                  >
-                    <TrashIcon className="h-5 w-5 text-red-600" />
-                  </button>
-                </td>
-              </motion.tr>
-            ))}
-
-            {filtered.length === 0 && (
-              <motion.tr
-                key="empty"
-                variants={rowVariants}
-                initial="hidden"
-                animate="show"
-                exit="exit"
-              >
-                <td colSpan="5" className="py-6 text-center text-gray-500">
-                  No matching projects.
-                </td>
-              </motion.tr>
-            )}
-          </AnimatePresence>
+          <tbody>
+            <AnimatePresence>
+              {filtered.map((p) => (
+                <motion.tr
+                  key={p._id}
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 6 }}
+                  className="border-b last:border-0 hover:bg-gray-50"
+                >
+                  <td className="py-2.5 px-4">{p.name}</td>
+                  <td className="py-2.5 px-4">{p.description}</td>
+                  <td className="py-2.5 px-4">{p.owner?.name}</td>
+                  <td className="py-2.5 px-4">{p.teamMembers.length} Members</td>
+                  <td className="py-2.5 px-4 text-center space-x-2">
+                    <button onClick={() => openEdit(p)}>
+                      <PencilSquareIcon className="h-5 w-5 text-blue-500" />
+                    </button>
+                    <button onClick={() => deleteProject(p._id)}>
+                      <TrashIcon className="h-5 w-5 text-red-500" />
+                    </button>
+                  </td>
+                </motion.tr>
+              ))}
+            </AnimatePresence>
+          </tbody>
         </table>
       </div>
 
-      {/* --- modal -------------------------------------------------------- */}  
+      {/* Modal */}
       {modalOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-            className="bg-white w-full max-w-lg rounded-xl shadow-lg p-6"
+            className="bg-white p-6 rounded-lg max-w-lg w-full shadow-xl"
           >
-            {/* modal header */}
-            <div className="flex justify-between items-start mb-4">
+            <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold" style={{ color: colors.secondary }}>
                 {isEditing ? 'Edit Project' : 'New Project'}
               </h2>
               <button onClick={() => setModalOpen(false)}>
-                <XMarkIcon className="h-6 w-6 text-gray-400" />
+                <XMarkIcon className="w-6 h-6 text-gray-400" />
               </button>
             </div>
 
-            {/* form fields */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm mb-1 font-medium">Name</label>
-                <input
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2"
-                  style={{ '--tw-ring-color': colors.primary }}
-                  placeholder="Project name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm mb-1 font-medium">Description</label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  rows={3}
-                  className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2"
-                  style={{ '--tw-ring-color': colors.primary }}
-                  placeholder="Short description"
-                />
-              </div>
+            <input
+              type="text"
+              name="name"
+              placeholder="Project Name"
+              value={formData.name}
+              onChange={handleChange}
+              className="w-full mb-3 px-4 py-2 border rounded"
+            />
 
-              {/* team selection */}
-              <div>
-                <label className="block text-sm mb-1 font-medium">Team Members</label>
-                <div className="flex flex-wrap gap-2">
-                  {allPeople.map(person => (
-                    <button
-                      key={person}
-                      type="button"
-                      onClick={() => toggleMember(person)}
-                      className={`px-3 py-1 rounded-full text-xs border
-                        ${formData.team.includes(person)
-                          ? 'bg-[var(--col-primary)] text-white border-[var(--col-primary)]'
-                          : 'hover:bg-gray-100'}`}
-                      style={{ '--col-primary': colors.primary }}
-                    >
-                      {person}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <textarea
+              name="description"
+              placeholder="Project Description"
+              value={formData.description}
+              onChange={handleChange}
+              className="w-full mb-3 px-4 py-2 border rounded"
+            />
 
-            {/* modal footer */}
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                onClick={() => setModalOpen(false)}
-                className="px-4 py-2 rounded border hover:bg-gray-50"
-              >
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setModalOpen(false)} className="px-4 py-2 border rounded">
                 Cancel
               </button>
               <button
                 onClick={saveProject}
-                className="px-4 py-2 rounded text-white"
+                className="px-4 py-2 text-white rounded"
                 style={{ background: colors.primary }}
               >
-                {isEditing ? 'Save Changes' : 'Create Project'}
+                {isEditing ? 'Save Changes' : 'Create'}
               </button>
             </div>
           </motion.div>

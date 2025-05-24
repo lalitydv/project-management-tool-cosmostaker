@@ -39,7 +39,7 @@ const Sidebar = () => {
         transition={{ duration: 0.3 }}
         className="fixed top-0 left-0 h-screen w-64 bg-white dark:bg-gray-900 shadow-lg z-40 md:block hidden"
       >
-        <div className="text-3xl font-bold text-primary p-6">.panze</div>
+        <div className="text-3xl font-bold text-primary p-6">Cosmost</div>
         <nav className="flex flex-col gap-2 px-4">
           {navItems.map((item) => (
             <NavLink

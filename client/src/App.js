@@ -8,11 +8,15 @@ import MainLayout from './layout/MainLayout';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './routes/ProtectedRoute';
 import Tasks from './pages/Tasks';
-
+import { Toaster } from 'react-hot-toast';
 const App = () => {
   return (
+    <>
+    
+    <Toaster position="top-right" reverseOrder={false} />
     <AuthProvider>
       <Routes>
+          
         {/* Public Routes */}
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -31,6 +35,7 @@ const App = () => {
         </Route>
       </Routes>
     </AuthProvider>
+    </>
   );
 };
 
